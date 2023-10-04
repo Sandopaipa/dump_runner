@@ -3,7 +3,44 @@ import datetime
 import csv
 import os
 from extractors.dir_extractor import DirExtractor
-from spiders.subnet_spiders import SubnetSpider
+from spiders.mac_spider import MacSpider
+
+
+class Node:
+    def __init__(
+            self,
+            default_mac_addr=None,
+            default_subnet_ipv4=None,
+            default_subnet_ipv6=None,
+            default_ygg_ipv6=None,
+            initial_node_to_multicast_number=0,
+            initial_src_packet_number=0,
+            initial_multicast_freq=0.0
+    ):
+        self.mac_addr = default_mac_addr
+        self.subnet_ipv4 = default_subnet_ipv4
+        self.subnet_ipv6 = default_subnet_ipv6
+        self.ygg_ipv6 = default_ygg_ipv6
+        self.node_to_multicast_number = initial_node_to_multicast_number
+        self.src_packet_number = initial_src_packet_number
+        self.multicast_freq = initial_multicast_freq
+
+        self._mac_addr_pattern = '(((([a-f]|[A-F])|\d){2}):){5}(([a-f]|[A-F]|\d){2})'
+        self._ipv4_addr_pattern = '(\d{1,3}}.){3}\d+'
+        self.subnet_ipv6_pattern = ''
+
+    def _validate(
+            self,
+            pattern: str,
+            data: str
+    ):
+        """
+        Внутренний метод для проверки валидности введенных данных.
+        Принимает на вход строку с данными и должен выдавать
+        True или False.
+        """
+        pass
+
 
 def dir_check(dir):
     if not os.path.exists(os.path.dirname(dir)):
@@ -35,6 +72,7 @@ if __name__ == '__main__':
     SRC_BASE_DIR = './src/'
     """Паттерн для поиска ip по дампу"""
     BASE_IP_PATTERN = '(?<=Source Address:.).+|(?<=Destination Address:.).+'
+    BASE_MAC_PATTERN = '(?<=Source:.)(((([a-f]|[A-F])|\d){2}):){5}(([a-f]|[A-F]|\d){2})'
 
     file_spider = DirExtractor()
     file_list = file_spider.file_inspect()
@@ -44,19 +82,12 @@ if __name__ == '__main__':
     Выводится название файла и список уникальных ipv6 адресов.
     """
     for file in file_list:
-        print(file)
-        unique_ip_list = []
-        cap = pyshark.FileCapture(SRC_BASE_DIR + file)
-
-        for packet in cap:
-            spider = SubnetSpider(raw_text_default=str(packet))
-            ip_list = spider.find_ip(BASE_IP_PATTERN)
-            for i in ip_list:
-                if i in unique_ip_list:
-                    continue
-                else:
-                    unique_ip_list.append(i)
-        print(unique_ip_list)
+        mac_list = []
+        dump = pyshark.FileCapture(SRC_BASE_DIR + file)
+        for packet in dump:
+            mac_spider = MacSpider(str(packet))
+            mac_addr = mac_spider.find_mac(BASE_MAC_PATTERN)
+            node = Node(default_mac_addr=mac_addr)
 
 
 
