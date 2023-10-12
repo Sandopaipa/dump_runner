@@ -10,5 +10,10 @@ class MacSpider:
 
     def find_mac(self, pattern=None):
         frame = self.raw_text
+#        print(frame)
         mac_addr = re.search(pattern, frame)
-        return mac_addr.group()
+
+        try:
+            return mac_addr.group()
+        except AttributeError:
+            return None

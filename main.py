@@ -4,43 +4,29 @@ import csv
 import os
 from extractors.dir_extractor import DirExtractor
 from spiders.mac_spider import MacSpider
+from spiders.yggdrasil_spider import YggdrasilSpider
+from spiders.subnet_spiders import SubnetIPV6Spider
+from data.Node import NodeDataHandler
 
 
-class Node:
-    def __init__(
-            self,
-            default_mac_addr=None,
-            default_subnet_ipv4=None,
-            default_subnet_ipv6=None,
-            default_ygg_ipv6=None,
-            initial_node_to_multicast_number=0,
-            initial_src_packet_number=0,
-            initial_multicast_freq=0.0
-    ):
-        self.mac_addr = default_mac_addr
-        self.subnet_ipv4 = default_subnet_ipv4
-        self.subnet_ipv6 = default_subnet_ipv6
-        self.ygg_ipv6 = default_ygg_ipv6
-        self.node_to_multicast_number = initial_node_to_multicast_number
-        self.src_packet_number = initial_src_packet_number
-        self.multicast_freq = initial_multicast_freq
+def traverse_dump(file: str, mac_pattern: str, ygg_pattern: str, subnet_pattern: str):
+    packets = pyshark.FileCapture(file)
+    for packet in packets:
+        mac_spider = MacSpider(str(packet))
+        ygg_spider = YggdrasilSpider(str(packet))
+        subnet_spider = SubnetIPV6Spider(str(packet))
 
-        self._mac_addr_pattern = '(((([a-f]|[A-F])|\d){2}):){5}(([a-f]|[A-F]|\d){2})'
-        self._ipv4_addr_pattern = '(\d{1,3}}.){3}\d+'
-        self.subnet_ipv6_pattern = ''
-
-    def _validate(
-            self,
-            pattern: str,
-            data: str
-    ):
-        """
-        Внутренний метод для проверки валидности введенных данных.
-        Принимает на вход строку с данными и должен выдавать
-        True или False.
-        """
-        pass
-
+        mac_addr = mac_spider.find_mac(pattern=mac_pattern)
+        ygg_addr = ygg_spider.find_ip(pattern=ygg_pattern)
+        subnet_addr = subnet_spider.find_ip(pattern=subnet_pattern)
+        node = NodeDataHandler(
+            default_mac=mac_addr,
+            default_multicasting=subnet_addr['multicast'],
+            default_ygg_ipv6=ygg_addr,
+            default_subnet_ipv6=subnet_addr['src'],
+            default_dump_file_name=file
+        )
+        node.touch()
 
 def dir_check(dir):
     if not os.path.exists(os.path.dirname(dir)):
@@ -55,7 +41,6 @@ def timebased_file_name(outdir='./output/'):
 
 def src_based_filename(outdir='./output/'):
     dir_check(outdir)
-
 
 def addr_output(data):
     outfile = timebased_file_name()
@@ -77,21 +62,10 @@ if __name__ == '__main__':
     file_spider = DirExtractor()
     file_list = file_spider.file_inspect()
 
-    """
-    На данный момент вывод информации идет через консоль.
-    Выводится название файла и список уникальных ipv6 адресов.
-    """
-    for file in file_list:
-        mac_list = []
-        dump = pyshark.FileCapture(SRC_BASE_DIR + file)
-        for packet in dump:
-            mac_spider = MacSpider(str(packet))
-            mac_addr = mac_spider.find_mac(BASE_MAC_PATTERN)
-            node = Node(default_mac_addr=mac_addr)
-
-
-
-
-
-
+    traverse_dump(
+        file='./src/ygg.pcapng',
+        mac_pattern=BASE_MAC_PATTERN,
+        subnet_pattern=BASE_IP_PATTERN,
+        ygg_pattern=BASE_IP_PATTERN
+    )
 

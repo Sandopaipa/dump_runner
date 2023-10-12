@@ -10,6 +10,7 @@ session = sessionmaker(bind=engine)
 
 Base = declarative_base()
 
+
 class Node(Base):
     """
     Класс, имплементирующий модель узла в БД.
@@ -24,8 +25,12 @@ class Node(Base):
     subnet_ipv6 = Column(String, nullable=True)
     ygg_ipv6 = Column(String, nullable=True)
     """Вычисляемые параметры"""
-    node_to_multicast_number = Column(Integer, nullable=True)
+    node_to_multicast_number = Column(Integer, default=0)
+    node_to_any_number = Column(Integer, default=0)
     multicast_freq = Column(Float, nullable=True)
+
+    dump_file_name = Column(String, nullable=True)
+
 
 class NodeDataHandler:
     def __init__(
@@ -34,18 +39,29 @@ class NodeDataHandler:
             default_subnet_ipv4=None,
             default_subnet_ipv6=None,
             default_ygg_ipv6=None,
+            default_multicasting=False,
+            default_dump_file_name=None
     ):
         self.mac_addr = default_mac
         self.subnet_ipv4 = default_subnet_ipv4
         self.subnet_ipv6 = default_subnet_ipv6
         self.ygg_ipv6 = default_ygg_ipv6
+        self.multicasting = default_multicasting
+        self.node_to_any = 0
+        self.dump_file_name = default_dump_file_name
 
     def _create(self, session: Session):
+        _multicasting = 0
+        if self.multicasting is True:
+            _multicasting = 1
         data = Node(
             mac_addr=self.mac_addr,
             subnet_ipv4=self.subnet_ipv4,
             subnet_ipv6=self.subnet_ipv6,
-            ygg_ipv6=self.ygg_ipv6
+            ygg_ipv6=self.ygg_ipv6,
+            node_to_multicast_number=_multicasting,
+            node_to_any_number=1,
+            dump_file_name=self.dump_file_name
         )
         session.add(data)
         session.commit()
@@ -59,6 +75,10 @@ class NodeDataHandler:
             node.mac_addr = value
         elif attr == 'subnet_ipv6':
             node.subnet_ipv6 = value
+        elif attr == 'node_to_multicast_number':
+            node.node_to_multicast_number += value
+        elif attr == 'node_to_any_number':
+            node.node_to_any_number += 1
 
     def _update(
             self,
@@ -68,14 +88,16 @@ class NodeDataHandler:
     ):
         for attr, value in vars(node).items():
             new_value = kwargs.get(attr)
-            if value != new_value and new_value is not None:
+            if value != new_value and new_value is not None and attr != 'node_to_multicast_number':
                 value = new_value
+            elif attr == 'node_to_multicast_number' and self.multicasting is True:
+                value = 1
             else:
                 continue
+#            print(attr)
             self._select_attr(node, attr, value)
         session.add(node)
         session.commit()
-        print('updated')
 
     def touch(self):
         session = Session(bind=engine)
@@ -84,23 +106,22 @@ class NodeDataHandler:
                 Node.mac_addr == self.mac_addr,
                 Node.subnet_ipv4 == self.subnet_ipv4,
                 Node.subnet_ipv6 == self.subnet_ipv6,
-                Node.ygg_ipv6 == self.ygg_ipv6
+                Node.ygg_ipv6 == self.ygg_ipv6,
             )).one()
-            node_id = node.id
             self._update(
                 node,
                 session=session,
-                node_id=node_id,
                 mac_addr=self.mac_addr,
                 subnet_ipv4=self.subnet_ipv4,
                 subnet_ipv6=self.subnet_ipv6,
-                ygg_ipv6=self.ygg_ipv6
+                ygg_ipv6=self.ygg_ipv6,
+                node_to_any_number=self.node_to_any
             )
         except MultipleResultsFound:
             print("Ошибка: по имеющимся данным, найдено больше одного узла")
 
         except NoResultFound:
-            print("Найден новый узле")
+            print("Найден новый узлел")
             self._create(session=session)
 
         session.close()
