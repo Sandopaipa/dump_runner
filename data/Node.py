@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine, MetaData, Table, \
-    Integer, String, Column, Float, or_
+from sqlalchemy import create_engine, \
+    Integer, String, Column, Float
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
@@ -26,7 +26,7 @@ class Node(Base):
     ygg_ipv6 = Column(String, nullable=True)
     """Вычисляемые параметры"""
     node_to_multicast_number = Column(Integer, default=0)
-    node_to_any_number = Column(Integer, default=0)
+    node_to_any_number = Column(Integer, default=1)
     multicast_freq = Column(Float, nullable=True)
 
     dump_file_name = Column(String, nullable=True)
@@ -35,35 +35,31 @@ class Node(Base):
 class NodeDataHandler:
     def __init__(
             self,
-            default_mac=None,
-            default_subnet_ipv4=None,
-            default_subnet_ipv6=None,
-            default_ygg_ipv6=None,
-            default_multicasting=False,
-            default_dump_file_name=None
+            default_dump_file_name=None,
+            **kwargs
     ):
-        self.mac_addr = default_mac
-        self.subnet_ipv4 = default_subnet_ipv4
-        self.subnet_ipv6 = default_subnet_ipv6
-        self.ygg_ipv6 = default_ygg_ipv6
-        self.multicasting = default_multicasting
-        self.node_to_any = 0
-        self.dump_file_name = default_dump_file_name
 
-    def _create(self, session: Session):
-        _multicasting = 0
-        if self.multicasting is True:
-            _multicasting = 1
-        data = Node(
-            mac_addr=self.mac_addr,
-            subnet_ipv4=self.subnet_ipv4,
-            subnet_ipv6=self.subnet_ipv6,
-            ygg_ipv6=self.ygg_ipv6,
-            node_to_multicast_number=_multicasting,
-            node_to_any_number=1,
-            dump_file_name=self.dump_file_name
-        )
-        session.add(data)
+        self.dump_file_name = default_dump_file_name
+        self.data = kwargs
+
+    def _find(self, _obj: Node, session: Session):
+        for field, value in self.data.items():
+            search_dict = {}
+            search_dict[field] = value
+            print(search_dict.items())
+            try:
+                record = session.query(_obj).filter_by(**search_dict).one()
+                print(record.id)
+                return record
+            except NoResultFound:
+                continue
+
+
+    def _create(self, session: Session, _obj: Node):
+        if self.data['multicast'] is True:
+            self.data['node_to_multicast_number'] = 1
+        new_record = _obj(**self.data)
+        session.add(new_record)
         session.commit()
 
     def _select_attr(self, node: Node, attr: str, value):
@@ -80,43 +76,43 @@ class NodeDataHandler:
         elif attr == 'node_to_any_number':
             node.node_to_any_number += 1
 
-    def _update(
-            self,
-            node: Node,
-            session: Session,
-            **kwargs
-    ):
-        for attr, value in vars(node).items():
-            new_value = kwargs.get(attr)
-            if value != new_value and new_value is not None and attr != 'node_to_multicast_number':
-                value = new_value
-            elif attr == 'node_to_multicast_number' and self.multicasting is True:
-                value = 1
+    def _update(self, _obj: Node, session: Session, id: int):
+        BASE_KEYS = [
+            'mac_addr',
+            'subnet_ipvv6',
+            'subnet_ipv4',
+            'ygg_ipv6'
+        ]
+        result = {}
+        for key, value in self.data.items():
+            if str(key) in BASE_KEYS:
+                old_value = getattr(_obj, str(key))
+                if old_value != value and value is not None:
+                    result[key] = value
             else:
                 continue
-#            print(attr)
-            self._select_attr(node, attr, value)
-        session.add(node)
+
+        if self.data['multicast'] is True:
+            result['node_to_multicast_number'] = _obj.node_to_multicast_number + 1
+        result['node_to_any_number'] = _obj.node_to_any_number + 1
+
+        session.query(_obj).filter(_obj.id == id).update(result)
         session.commit()
 
+
     def touch(self):
+
         session = Session(bind=engine)
         try:
-            node = session.query(Node).filter(or_(
-                Node.mac_addr == self.mac_addr,
-                Node.subnet_ipv4 == self.subnet_ipv4,
-                Node.subnet_ipv6 == self.subnet_ipv6,
-                Node.ygg_ipv6 == self.ygg_ipv6,
-            )).one()
-            self._update(
-                node,
-                session=session,
-                mac_addr=self.mac_addr,
-                subnet_ipv4=self.subnet_ipv4,
-                subnet_ipv6=self.subnet_ipv6,
-                ygg_ipv6=self.ygg_ipv6,
-                node_to_any_number=self.node_to_any
-            )
+            """
+            Надо сделать так, чтобы поиск шел только по тем значениям, которые не 
+            None.
+            """
+            node = self._find(_obj=Node, session=session)
+            if node is None:
+                self._create(session=session, _obj=Node)
+            else:
+                self._update(_obj=Node, session=session, id=node.id)
         except MultipleResultsFound:
             print("Ошибка: по имеющимся данным, найдено больше одного узла")
 
