@@ -19,12 +19,15 @@ def traverse_dump(file: str, mac_pattern: str, ygg_pattern: str, subnet_pattern:
         mac_addr = mac_spider.find_mac(pattern=mac_pattern)
         ygg_addr = ygg_spider.find_ip(pattern=ygg_pattern)
         subnet_addr = subnet_spider.find_ip(pattern=subnet_pattern)
+        if mac_addr is None and ygg_addr is None and subnet_addr['src'] is None:
+            print(packet)
+
         node = NodeDataHandler(
-            default_mac=mac_addr,
-            default_multicasting=subnet_addr['multicast'],
-            default_ygg_ipv6=ygg_addr,
-            default_subnet_ipv6=subnet_addr['src'],
-            default_dump_file_name=file
+            mac_addr=mac_addr,
+            multicast=subnet_addr['multicast'],
+            ygg_ipv6=ygg_addr,
+            subnet_ipv6=subnet_addr['src'],
+            dump_file_name=file
         )
         node.touch()
 
@@ -61,11 +64,16 @@ if __name__ == '__main__':
 
     file_spider = DirExtractor()
     file_list = file_spider.file_inspect()
-
-    traverse_dump(
-        file='./src/ygg.pcapng',
-        mac_pattern=BASE_MAC_PATTERN,
-        subnet_pattern=BASE_IP_PATTERN,
-        ygg_pattern=BASE_IP_PATTERN
-    )
+#    traverse_dump(file='./src/2350local2ygg1norm.pcapng', mac_pattern=BASE_MAC_PATTERN, subnet_pattern=BASE_IP_PATTERN, ygg_pattern=BASE_IP_PATTERN)
+#    print()
+#    traverse_dump(file='./src/ygg.pcapng', mac_pattern=BASE_MAC_PATTERN, subnet_pattern=BASE_IP_PATTERN, ygg_pattern=BASE_IP_PATTERN)
+    for file in file_list:
+        print(file)
+        print('wait')
+        traverse_dump(
+            file=SRC_BASE_DIR+file,
+            mac_pattern=BASE_MAC_PATTERN,
+            subnet_pattern=BASE_IP_PATTERN,
+            ygg_pattern=BASE_IP_PATTERN,
+        )
 

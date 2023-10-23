@@ -42,61 +42,66 @@ class NodeDataHandler:
         self.dump_file_name = default_dump_file_name
         self.data = kwargs
 
+        self.BASE_KEYS = [
+            'mac_addr',
+            'subnet_ipv6',
+            'subnet_ipv4',
+            'ygg_ipv6',
+            'dump_file_name'
+        ]
+
+
     def _find(self, _obj: Node, session: Session):
+        search_dict = {}
+        search_dict['dump_file_name'] = self.data['dump_file_name']
         for field, value in self.data.items():
-            search_dict = {}
-            search_dict[field] = value
-            print(search_dict.items())
+            if str(field) in self.BASE_KEYS and value is not None:
+                search_dict[field] = value
+            else:
+                continue
             try:
+                print(search_dict)
                 record = session.query(_obj).filter_by(**search_dict).one()
-                print(record.id)
                 return record
             except NoResultFound:
                 continue
+            except MultipleResultsFound:
+                print('Было найдено несколько узлов')
+
 
 
     def _create(self, session: Session, _obj: Node):
+        record = {}
+
+        for field, val in self.data.items():
+            if str(field) in self.BASE_KEYS and val is not None:
+                record[field] = val
         if self.data['multicast'] is True:
-            self.data['node_to_multicast_number'] = 1
-        new_record = _obj(**self.data)
+            record['node_to_multicast_number'] = 1
+        else:
+            del self.data['multicast']
+        record['node_to_any_number'] = 1
+
+        new_record = _obj(**record)
         session.add(new_record)
         session.commit()
 
-    def _select_attr(self, node: Node, attr: str, value):
-        if attr == 'subnet_ipv4':
-            node.subnet_ipv4 = value
-        elif attr == 'ygg_ipv6':
-            node.ygg_ipv6 = value
-        elif attr == 'mac_addr':
-            node.mac_addr = value
-        elif attr == 'subnet_ipv6':
-            node.subnet_ipv6 = value
-        elif attr == 'node_to_multicast_number':
-            node.node_to_multicast_number += value
-        elif attr == 'node_to_any_number':
-            node.node_to_any_number += 1
-
-    def _update(self, _obj: Node, session: Session, id: int):
-        BASE_KEYS = [
-            'mac_addr',
-            'subnet_ipvv6',
-            'subnet_ipv4',
-            'ygg_ipv6'
-        ]
+    def _update(self, _obj: Node, session: Session, multicast_num: int, id: int):
         result = {}
         for key, value in self.data.items():
-            if str(key) in BASE_KEYS:
+            if str(key) in self.BASE_KEYS[:4] and value is not None:
                 old_value = getattr(_obj, str(key))
-                if old_value != value and value is not None:
+                if old_value is None or old_value != value:
                     result[key] = value
             else:
                 continue
 
         if self.data['multicast'] is True:
-            result['node_to_multicast_number'] = _obj.node_to_multicast_number + 1
-        result['node_to_any_number'] = _obj.node_to_any_number + 1
+            result['node_to_multicast_number'] = int(_obj.node_to_multicast_number) + 1
 
-        session.query(_obj).filter(_obj.id == id).update(result)
+        result['node_to_any_number'] = int(_obj.node_to_any_number) + 1
+
+        session.query(Node).filter(_obj.id == id).update(result)
         session.commit()
 
 
@@ -110,9 +115,14 @@ class NodeDataHandler:
             """
             node = self._find(_obj=Node, session=session)
             if node is None:
-                self._create(session=session, _obj=Node)
+                for field, val in self.data.items():
+                    if field in self.BASE_KEYS[:4] and val is not None:
+                        self._create(session=session, _obj=Node)
+                        break
+                    else:
+                        continue
             else:
-                self._update(_obj=Node, session=session, id=node.id)
+                self._update(_obj=node, session=session, multicast_num=int(node.node_to_multicast_number), id=node.id)
         except MultipleResultsFound:
             print("Ошибка: по имеющимся данным, найдено больше одного узла")
 
