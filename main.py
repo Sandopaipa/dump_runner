@@ -1,6 +1,4 @@
 import pyshark
-import datetime
-import csv
 import os
 from extractors.dir_extractor import DirExtractor
 from spiders.mac_spider import MacSpider
@@ -10,6 +8,15 @@ from data.Node import NodeDataHandler
 
 
 def traverse_dump(file: str, mac_pattern: str, ygg_pattern: str, subnet_pattern: str):
+    """
+    Функция для сбора информации из файла дампа трафика.
+    file:           строка - путь к файлу дампа;
+    mac_pattern:    строка - паттерн для регулярного выражения, который будет использован для поиска mac-адресов;
+    ygg_pattern:    строка - паттерн для регулярного выражения, который будет использован для поиска адресов,
+                    которые принадлежат сети yggdrasil;
+    subnet_pattern: строка - паттерн для регулярного выражения, который будет использован для поиска ip адресов
+                    подсети.
+    """
     packets = pyshark.FileCapture(file)
     for packet in packets:
         mac_spider = MacSpider(str(packet))
@@ -19,8 +26,6 @@ def traverse_dump(file: str, mac_pattern: str, ygg_pattern: str, subnet_pattern:
         mac_addr = mac_spider.find_mac(pattern=mac_pattern)
         ygg_addr = ygg_spider.find_ip(pattern=ygg_pattern)
         subnet_addr = subnet_spider.find_ip(pattern=subnet_pattern)
-        if mac_addr is None and ygg_addr is None and subnet_addr['src'] is None:
-            print(packet)
 
         node = NodeDataHandler(
             mac_addr=mac_addr,
@@ -31,42 +36,28 @@ def traverse_dump(file: str, mac_pattern: str, ygg_pattern: str, subnet_pattern:
         )
         node.touch()
 
-def dir_check(dir):
-    if not os.path.exists(os.path.dirname(dir)):
-        os.makedirs(dir)
 
-def timebased_file_name(outdir='./output/'):
-    dir_check(outdir)
-    date = datetime.datetime.now()
-    file_extension = '.csv'
-    new_file_name = outdir + date.strftime('%y_%m_%d_%H%M%S') + file_extension
-    return new_file_name
-
-def src_based_filename(outdir='./output/'):
-    dir_check(outdir)
-
-def addr_output(data):
-    outfile = timebased_file_name()
-
-    with open(outfile, 'w', encoding='utf-8', newline="") as file:
-        writer = csv.writer(file, delimiter='\n')
-        writer.writerow(data)
+def dir_check(_dir: str):
+    """
+    Функция для проверки наличия директории. В случае, если директория не найдена - создает новую.
+    dir: строка - путь к директории.
+    """
+    if not os.path.exists(os.path.dirname(_dir)):
+        os.makedirs(_dir)
 
 
 if __name__ == '__main__':
 
-
-    """Директория с дампами"""
-    SRC_BASE_DIR = './src/'
-    """Паттерн для поиска ip по дампу"""
+    SRC_BASE_DIR = './src/'  # Директория с дампами трафика
+    """
+    Паттерны для поиска ip и mac-адресов по дампу. BASE_IP_PATTERN используется как для поиска 
+    ip адресов подсети - так и для поиска адресов, которые принадлежат yggdrasil.
+    """
     BASE_IP_PATTERN = '(?<=Source Address:.).+|(?<=Destination Address:.).+'
     BASE_MAC_PATTERN = '(?<=Source:.)(((([a-f]|[A-F])|\d){2}):){5}(([a-f]|[A-F]|\d){2})'
 
     file_spider = DirExtractor()
     file_list = file_spider.file_inspect()
-#    traverse_dump(file='./src/2350local2ygg1norm.pcapng', mac_pattern=BASE_MAC_PATTERN, subnet_pattern=BASE_IP_PATTERN, ygg_pattern=BASE_IP_PATTERN)
-#    print()
-#    traverse_dump(file='./src/ygg.pcapng', mac_pattern=BASE_MAC_PATTERN, subnet_pattern=BASE_IP_PATTERN, ygg_pattern=BASE_IP_PATTERN)
     for file in file_list:
         print(file)
         print('wait')
@@ -76,4 +67,3 @@ if __name__ == '__main__':
             subnet_pattern=BASE_IP_PATTERN,
             ygg_pattern=BASE_IP_PATTERN,
         )
-

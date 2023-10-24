@@ -9,7 +9,7 @@ session = Session(bind=engine)
 Base.metadata.create_all(engine)
 
 
-search_fields = {
+"""search_fields = {
     'mac_addr': 'c0-c9-e3-45-72-77',
     'subnet_ipv6': 'fe00::',
     'subnet_ipv4': '0.0.0.0',
@@ -25,7 +25,7 @@ node1 = NodeDataHandler(
     multicast=True
 )
 record = node1.touch()
-"""#c0-c9-e3-45-72-7a
+
 node1.touch()
 node2 = NodeDataHandler(
     default_mac='c0-c9-e3-45-72-77',

@@ -4,7 +4,7 @@ import os
 class DirExtractor:
     """
     Класс, реализующий траверс по директории для чтения
-    файлов.
+    файлов. По-умолчанию обращается к папке src в директории проекта.
     """
     def __init__(self, default_src_dir='./src'):
         self.BASE_DIR = default_src_dir
@@ -25,14 +25,10 @@ class DirExtractor:
         return self.count
 
     def _dir_check(self):
+        """
+        Функция для проверки наличия директории. В случае, если директория не найдена - создает новую.
+        dir: строка - путь к директории.
+        """
         if not os.path.exists(os.path.dirname(str(self.BASE_DIR + '/'))):
             os.makedirs(self.BASE_DIR)
             print('Пустая папка src. Пожалуйста, загрузите в неё дампы')
-
-    def _file_check(self, filename):
-        """
-        Внутренний метод для проверки соответствия названия
-        файла и его расширения допустимым названиям.
-        Чтобы читать только дампы, а не все файлы в директории
-        """
-        pass

@@ -5,12 +5,17 @@ import re
 class SubnetIPV6Spider:
     """
     Класс для поиска ipv6 адресов в заданном диапазоне. Данный класс используется для
-    поиска subnet-ipv6 адресов, которые обращаются к мультикастингу.
+    поиска ipv6 адресов подсети, которые производят мультиадресную рассылку.
     """
     def __init__(self,
                  raw_text_default,
                  default_subnet_ip_lower_border='fe00::',
                  default_subnet_ip_higher_border='ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'):
+        """
+        raw_text_default:           строковое представление пакета дампа трафика;
+        subnet_ip_lower_border:     нижняя граница диапазона собираемых ip адресов;
+        subnet_ip_higher_border:    верхняя граница диапазона собираемых ip адресов.
+        """
 
         self.raw_text = raw_text_default
         self.subnet_ip_lower_border = default_subnet_ip_lower_border
@@ -20,7 +25,7 @@ class SubnetIPV6Spider:
         """
         Внутренний метод класса, который проверяет соответствие найденного ip
         заданному диапазону.
-        param: ip - приниматет строковое представление адреса
+        param: ip - приниматет строковое представление найденного ip адреса.
         """
         try:
             ipv6_addr = ipaddress.IPv6Address(ip)
@@ -35,6 +40,7 @@ class SubnetIPV6Spider:
     def _is_multicast(self, ip: str):
         """
         Проверяет, идет ли обращение найденного ip к мультикастингу.
+        param: ip - приниматет строковое представление найденного ip адреса.
         """
         try:
             ipv6_addr = ipaddress.IPv6Address(ip)
@@ -44,6 +50,10 @@ class SubnetIPV6Spider:
             pass
 
     def find_ip(self, pattern=None):
+        """
+        Метод для поиска ip адреса по заданному паттерну.
+        pattern: строковое представление паттерна для регулярного выражения.
+        """
         result = {
             'src': None,
             'multicast': False
