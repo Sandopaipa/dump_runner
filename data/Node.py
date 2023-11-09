@@ -1,6 +1,8 @@
 from sqlalchemy import create_engine, \
     Integer, String, Column
 
+from sqlalchemy.dialects.postgresql import INET, MACADDR
+
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
@@ -27,9 +29,9 @@ class Node(Base):
     __tablename__ = 'nodes'  # Название таблицы
     id = Column(Integer, primary_key=True)  # Идентификатор узла (записи в БД)
     """Параметры, собираемые из дампов"""
-    mac_addr = Column(String, nullable=True)  # MAC-адрес узла
-    subnet_ipv6 = Column(String, nullable=True)  # IPv6 адрес узла в подсети
-    ygg_ipv6 = Column(String, nullable=True)  # IPv6 адрес узла в сети Yggdrasil
+    mac_addr = Column(MACADDR, nullable=True)  # MAC-адрес узла
+    subnet_ipv6 = Column(INET, nullable=True)  # IPv6 адрес узла в подсети
+    ygg_ipv6 = Column(INET, nullable=True)  # IPv6 адрес узла в сети Yggdrasil
     """Вычисляемые параметры"""
     node_to_multicast_number = Column(Integer, default=0)  # Число произведенных мультиадресных рассылок
     node_to_any_number = Column(Integer, default=1)  # Общее число исходящих пакетов
