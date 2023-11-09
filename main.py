@@ -6,6 +6,9 @@ from spiders.yggdrasil_spider import YggdrasilSpider
 from spiders.subnet_spiders import SubnetIPV6Spider
 from data.Node import NodeDataHandler
 
+import nest_asyncio
+nest_asyncio.apply()
+
 
 def traverse_dump(file: str, mac_pattern: str, ygg_pattern: str, subnet_pattern: str):
     """

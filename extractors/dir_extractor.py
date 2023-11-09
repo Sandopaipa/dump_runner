@@ -8,7 +8,6 @@ class DirExtractor:
     """
     def __init__(self, default_src_dir='./src'):
         self.BASE_DIR = default_src_dir
-        self.count = 0
 
     def file_inspect(self):
         """
@@ -18,11 +17,7 @@ class DirExtractor:
         self._dir_check()
         for root, dirs, files in os.walk(self.BASE_DIR):
             for filename in files:
-                self.count += 1
                 yield filename
-
-    def count_files(self):
-        return self.count
 
     def _dir_check(self):
         """

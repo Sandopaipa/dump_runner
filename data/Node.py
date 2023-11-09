@@ -5,7 +5,16 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 
-engine = create_engine("postgresql+psycopg2://postgres:1111@localhost/stc_db", echo=False)
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+DB_USER = os.getenv('DB_USER')
+DB_PASS = os.getenv('DB_PASS')
+DB_HOST = os.getenv('DB_HOST')
+DB_NAME = os.getenv('DB_NAME')
+
+engine = create_engine(f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}", echo=False)
 session = sessionmaker(bind=engine)
 
 Base = declarative_base()
@@ -15,17 +24,17 @@ class Node(Base):
     """
     Класс, имплементирующий модель узла в БД.
     """
-    __tablename__ = 'nodes'  #Название таблицы
-    id = Column(Integer, primary_key=True)  #Идентификатор узла (записи в БД)
+    __tablename__ = 'nodes'  # Название таблицы
+    id = Column(Integer, primary_key=True)  # Идентификатор узла (записи в БД)
     """Параметры, собираемые из дампов"""
-    mac_addr = Column(String, nullable=True)  #MAC-адрес узла
-    subnet_ipv6 = Column(String, nullable=True)  #IPv6 адрес узла в подсети
-    ygg_ipv6 = Column(String, nullable=True)  #IPv6 адрес узла в сети Yggdrasil
+    mac_addr = Column(String, nullable=True)  # MAC-адрес узла
+    subnet_ipv6 = Column(String, nullable=True)  # IPv6 адрес узла в подсети
+    ygg_ipv6 = Column(String, nullable=True)  # IPv6 адрес узла в сети Yggdrasil
     """Вычисляемые параметры"""
-    node_to_multicast_number = Column(Integer, default=0) # Число произведенных мультиадресных рассылок
-    node_to_any_number = Column(Integer, default=1) # Общее число исходящих пакетов
+    node_to_multicast_number = Column(Integer, default=0)  # Число произведенных мультиадресных рассылок
+    node_to_any_number = Column(Integer, default=1)  # Общее число исходящих пакетов
     """Вспомогательные поля"""
-    dump_file_name = Column(String, nullable=True) # Имя файла. Для поиска узлов при работе с несколькими файлами
+    dump_file_name = Column(String, nullable=True)  # Имя файла. Для поиска узлов при работе с несколькими файлами
 
 
 class NodeDataHandler:
@@ -50,14 +59,13 @@ class NodeDataHandler:
             'dump_file_name'
         ]
 
-
     def _find(self, _obj: Node, session: Session):
         """
-        Внутренний метод для поиска узла по собранным в дампе данным. Поиск выполняется только по тем полям, которые не имеют
-        значения None.
-        _obj: экземпляр класса Node - представляет собой запись в базе данных
-        session: экземпляр класса Session для поддержания запросов к БД
-        return: record: Node - запись в таблице базы данных. Экземпляр класса Node.
+        Внутренний метод для поиска узла по собранным в дампе данным.
+        Поиск выполняется только по тем полям, которые не имеют значения None.
+        _obj:       экземпляр класса Node - представляет собой запись в базе данных
+        session:    экземпляр класса Session для поддержания запросов к БД
+        return:     record: Node - запись в таблице базы данных. Экземпляр класса Node.
         """
         search_dict = {}
         search_dict['dump_file_name'] = self.data['dump_file_name']
@@ -75,15 +83,11 @@ class NodeDataHandler:
             else:
                 continue
 
-
-
-
-
     def _create(self, session: Session, _obj: Node):
         """
         Внутренний метод для создания записи в базе данных.
-        _obj: экземпляр класса Node - представляет собой запись в базе данных
-        session: экземпляр класса Session для поддержания запросов к БД
+        _obj:       экземпляр класса Node - представляет собой запись в базе данных
+        session:    экземпляр класса Session для поддержания запросов к БД
         """
         record = {}
 
@@ -103,8 +107,8 @@ class NodeDataHandler:
     def _update(self, _obj: Node, session: Session):
         """
         Внутренний метод для обновления записи в БД.
-        _obj: экземпляр класса Node - представляет собой запись в базе данных.
-        session: экземпляр класса Session для поддержания запросов к БД.
+        _obj:       экземпляр класса Node - представляет собой запись в базе данных.
+        session:    экземпляр класса Session для поддержания запросов к БД.
         """
         result = {}
 
@@ -123,7 +127,6 @@ class NodeDataHandler:
 
         session.query(Node).filter(Node.id == _obj.id).update(result)
         session.commit()
-
 
     def touch(self):
         """
